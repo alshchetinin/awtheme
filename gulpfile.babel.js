@@ -86,7 +86,7 @@ export const watchForChanges = () => {
 const server = browserSync.create();
 export const serve = done => {
   server.init({
-    proxy: "http://domus.local" // put your local website link here
+    proxy: "http://awtheme.local/" // put your local website link here
   });
   done();
 };

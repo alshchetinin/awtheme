@@ -7,28 +7,44 @@ import sass from 'gulp-sass';
 import cleanCss from 'gulp-clean-css';
 import gulpif from 'gulp-if';
 import sourcemaps from 'gulp-sourcemaps';
-const autoprefixer = require("gulp-autoprefixer");
+import postcss from 'gulp-postcss';
+import purgecss  from'@fullhuman/postcss-purgecss'
+// const autoprefixer = require("gulp-autoprefixer");
+const autoprefixer = require('autoprefixer');
 import imagemin from 'gulp-imagemin';
 import del from 'del';
 import zip from "gulp-zip";
 import replace from "gulp-replace";
+import fs from 'fs'
+import atImport from 'postcss-import'
 import info from "./package.json";
 
+
 const PRODUCTION = yargs.argv.prod;
+const css = fs.readFileSync("./src/css/bundle.css", "utf8")
 
 export const styles = () => {
-  return src('src/sass/bundle.sass')
-    .pipe(gulpif(!PRODUCTION, sourcemaps.init()))
-    .pipe(sass().on('error', sass.logError))
-    .pipe(gulpif(PRODUCTION, autoprefixer({
-      grid: true,
-      overrideBrowserslist: ["last 10 versions"]
-    })))
-    .pipe(gulpif(PRODUCTION, cleanCss({compatibility:'ie8'})))
-    .pipe(gulpif(!PRODUCTION, sourcemaps.write()))
-    .pipe(dest('dist/css'))
-    .pipe(server.stream());
+  const plugins =[    
+    require('autoprefixer'),
+    purgecss({
+      content: ['./**/*.php', './src/**/*.js', './**/*.js'],
+      safelist: {
+        standard: [/^has-/, /^align/, /^wp-/]
+      },
+      defaultExtractor: content => content.match(/[\w-/:]+(?<!:)/g) || []
+    })
+  ]
+
+  return src('src/css/*.css')
+  .pipe(postcss([require('tailwindcss'),
+  require('postcss-import')])) 
+  .pipe(gulpif(PRODUCTION, postcss(plugins)))
+  .pipe(dest('dist/css'))
+  .pipe(server.stream());
 }
+
+
+
 
 export const scripts = () => {
   return src(['src/js/bundle.js','src/js/admin.js'])
@@ -65,7 +81,7 @@ export const clean = () => {
 }
 
 export const copy = () => {
-  return src(['src/**/*','!src/{images,js,sass}','!src/{images,js,sass}/**/*'])
+  return src(['src/**/*','!src/{images,js,css}','!src/{images,js,css}/**/*'])
     .pipe(dest('dist'));
 }
 
@@ -76,10 +92,10 @@ export const images = () => {
 }
 
 export const watchForChanges = () => {
-  watch('src/scss/**/*.scss', series(styles, reload));
+  watch('src/css/**/*.css', series(styles, reload));
   watch('src/images/**/*.{jpg,jpeg,png,svg,gif}', series(images, reload));
   watch(['src/**/*','!src/{images,js,scss}','!src/{images,js,scss}/**/*'], series(copy, reload));
-  watch('src/js/**/*.js', series(scripts, reload));
+  watch(['src/js/**/*.js', 'components/**/*.js'], series(scripts, reload));
   watch("**/*.php", reload);
 }
 
